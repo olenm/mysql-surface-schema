@@ -7,7 +7,7 @@ usage: ${0##*/}  [ U=[mysql-user] ]  [ p=[mysql-password] ]  [ D=[mysql-database
   Creates a yml friendly database 'schema' (ordered alphabetically) where only details are table and column names.
   > Parameter order does not matter, but is case sensitive
 
-  Env Vars (params take precedence):
+  Env Vars (params take precedence, even over .myncf):
     MYSQL_USER
     MYSQL_PASSWORD
     MYSQL_DATABASE
@@ -47,41 +47,43 @@ done
 args=(${@})
 for ((i=0; i< ${#args[@]}; i++)); do
   if [[ "${args[$i]:0:2}" == "U=" ]]; then
-    UN="${args[$i]:2}"
+    tUN="${args[$i]:2}"
   fi
   if [[ "${args[$i]:0:2}" == "p=" ]]; then
-    PW="${args[$i]:2}"
+    tPW="${args[$i]:2}"
   fi
   if [[ "${args[$i]:0:2}" == "D=" ]]; then
     DB="${args[$i]:2}"
   fi
   if [[ "${args[$i]:0:2}" == "H=" ]]; then
-    HN="${args[$i]:2}"
+    tHN="${args[$i]:2}"
   fi
   if [[ "${args[$i]:0:2}" == "P=" ]]; then
-    HP="${args[$i]:2}"
+    tHP="${args[$i]:2}"
   fi
 done
 
-[[ -z "$UN" ]] && UN=${MYSQL_USER}
-[[ -z "$PW" ]] && PW=${MYSQL_PASSWORD}
-[[ -z "$DB" ]] && DB=${MYSQL_DATABASE-mysql}
-[[ -z "$HN" ]] && HN=${MYSQL_HOST-localhost}
-[[ -z "$HP" ]] && HP=${MYSQL_HOST-3306}
+[[ -z "$tUN" ]] && tUN=${MYSQL_USER}
+[[ -z "$tPW" ]] && tPW=${MYSQL_PASSWORD}
+[[ -z "$DB" ]] && DB=${MYSQL_DATABASE}
+[[ -z "$tHN" ]] && tHN=${MYSQL_HOST}
+[[ -z "$tHP" ]] && tHP=${MYSQL_PORT}
 
-
-
+[[ -n "$tUN" ]] && UN="-u${tUN}"
+[[ -n "$tPW" ]] && PW="-p${tPW}"
+# no DB alterations
+[[ -n "$tHN" ]] && HN="-h ${tHN}"
+[[ -n "$tHP" ]] && HP="-P${tHP}"
 
 function sqlexec() {
-    RES=$(mysql -u${UN} -p${PW} ${DB} -h ${HN} -P${HP} -Nse "${@}" 2>/dev/null)
+    RES=$( mysql ${UN} ${PW} ${DB} ${HN} ${HP} -Nse "${@}"  )
     if [[ 0 -ne $? ]]; then
-        echo "mysql -u${UN} -p<censored> ${DB} -h ${HN} -P${HP} -Nse  "
+        echo "mysql ${UN} ${DB} ${HN} ${HP} -Nse  "
         echo "   '${@}'"
         exit 1
     fi
     echo "$RES" | sort -u
 }
-
 
 TABLES=$(sqlexec "show tables;" )
 err_chk $? "${TABLES}"
