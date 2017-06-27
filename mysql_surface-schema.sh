@@ -2,7 +2,7 @@
 
 function help() {
 cat <<EOF
-usage: ${0##*/}  [ U=[mysql-user] ]  [ p=[mysql-password] ]  [ D=[mysql-database] ]  [ H=[mysql-host] ]  [ P=[mysql-port] ]
+usage: ${0##*/}  [ U=[mysql-user] ]  [ p=[mysql-password] ]  [ D=[mysql-database] ]  [ H=[mysql-host] ]  [ P=[mysql-port] ] [ --mode=[yml|anything] ]
 
   Creates a yml friendly database 'schema' (ordered alphabetically) where only details are table and column names.
   > Parameter order does not matter, but is case sensitive
@@ -21,7 +21,7 @@ usage: ${0##*/}  [ U=[mysql-user] ]  [ p=[mysql-password] ]  [ D=[mysql-database
 
   example:
     read -s PW
-    MYSQL_PASSWORD=\$PW ./mysql_surface-schema-to-yml.sh U=user D=db H=localhost P=3306
+    MYSQL_PASSWORD=\$PW ./mysql_surface-schema-to-yml.sh U=user D=db H=localhost P=3306 --mode=yml
     unset PW
 EOF
 }
@@ -45,6 +45,7 @@ for x in ${@}; do
 done
 
 args=(${@})
+MODE=""
 for ((i=0; i< ${#args[@]}; i++)); do
   if [[ "${args[$i]:0:2}" == "U=" ]]; then
     tUN="${args[$i]:2}"
@@ -61,7 +62,11 @@ for ((i=0; i< ${#args[@]}; i++)); do
   if [[ "${args[$i]:0:2}" == "P=" ]]; then
     tHP="${args[$i]:2}"
   fi
+  if [[ "${args[$i]:0:7}" == "--mode=" ]]; then
+    MODE="${args[$i]:7}"
+  fi
 done
+
 
 [[ -z "$tUN" ]] && tUN=${MYSQL_USER}
 [[ -z "$tPW" ]] && tPW=${MYSQL_PASSWORD}
@@ -88,11 +93,18 @@ function sqlexec() {
 TABLES=$(sqlexec "show tables;" )
 err_chk $? "${TABLES}"
 
-echo "---"
-for T in $TABLES; do
+if [[ "$MODE" == "yml" ]]; then
+  echo "---"
+  for T in $TABLES; do
     echo "${T}:"
     RES=$(sqlexec "show columns from ${T};")
     err_chk $? "${RES}"
     echo "${RES}" | awk '{print "  - "$1}'
-done
-
+  done
+else
+  for T in $TABLES; do
+    RES=$(sqlexec "show columns from ${T};")
+    err_chk $? "${RES}"
+    echo "${RES}" | awk '{print $1}' | sed "s/^/$T./g"
+  done
+fi
