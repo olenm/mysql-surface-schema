@@ -26,6 +26,8 @@ usage: ${0##*/}  [ U=[mysql-user] ]  [ p=[mysql-password] ]  [ D=[mysql-database
 EOF
 }
 
+FILTER_ERR='Using a password on the command line interface can be insecure'
+
 function err_chk() {
     if [[ 0 -ne $1 ]]; then
     echo -e "ERROR:\n $2" >&2
@@ -81,7 +83,7 @@ done
 [[ -n "$tHP" ]] && HP="-P${tHP}"
 
 function sqlexec() {
-    RES=$( mysql ${UN} ${PW} ${DB} ${HN} ${HP} -Nse "${@}"  )
+    RES=$( mysql ${UN} ${PW} ${DB} ${HN} ${HP} -Nse "${@}"  2> >( awk "! /${FILTER_ERR}/")  )
     if [[ 0 -ne $? ]]; then
         echo "mysql ${UN} ${DB} ${HN} ${HP} -Nse  "
         echo "   '${@}'"
